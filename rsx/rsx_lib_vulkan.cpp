@@ -209,7 +209,17 @@ void rsx_vulkan_set_video_refresh(retro_video_refresh_t cb)
 
 void rsx_vulkan_get_system_av_info(struct retro_system_av_info *info)
 {
-   rsx_vulkan_refresh_variables();
+   /*
+    * Do NOT call rsx_vulkan_refresh_variables() here.
+    *
+    * This function is called from retro_set_system_av_info() during
+    * retro_run(). Calling refresh_variables here causes mutual
+    * recursion (refresh_variables calls this function back via
+    * SET_SYSTEM_AV_INFO), corrupting renderer state.
+    *
+    * Variable refresh is handled by the check_variables() path
+    * in libretro.cpp when GET_VARIABLE_UPDATE returns true.
+    */
 
    memset(info, 0, sizeof(*info));
 

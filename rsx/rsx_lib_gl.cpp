@@ -2430,11 +2430,29 @@ static struct retro_system_av_info get_av_info(VideoClock std)
 
 void rsx_gl_get_system_av_info(struct retro_system_av_info *info)
 {
-   /* TODO/FIXME - This definition seems very backwards and duplicating work */
-
-   /* This will possibly trigger the frontend to reconfigure itself */
-   if (static_renderer.inited)
-      rsx_gl_refresh_variables();
+   /*
+    * Do NOT call rsx_gl_refresh_variables() here.
+    *
+    * This function is called from retro_set_system_av_info() during
+    * retro_run() to query the current AV info. Calling refresh_variables
+    * here is dangerous because:
+    *
+    * 1. refresh_variables reads core options and may call
+    *    environ_cb(SET_SYSTEM_AV_INFO) itself, causing recursion.
+    *
+    * 2. If the frontend handles SET_SYSTEM_AV_INFO by calling
+    *    context_destroy + context_reset, the GL renderer is torn down
+    *    and rebuilt mid-call, invalidating any pointers held by the
+    *    caller (retro_refresh_variables).
+    *
+    * 3. refresh_variables modifies GL state (glUseProgram, glUniform,
+    *    texture rebuilds) which corrupts the in-progress frame's
+    *    rendering pipeline.
+    *
+    * Variable refresh is already handled by the check_variables() path
+    * in libretro.cpp, which is called when GET_VARIABLE_UPDATE returns
+    * true. That is the correct place for it.
+    */
 
    struct retro_system_av_info result = get_av_info(static_renderer.video_clock);
    memcpy(info, &result, sizeof(result));
